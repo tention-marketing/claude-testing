@@ -1,0 +1,40 @@
+# SENSITIVE - never push these
+config.yaml
+config.yaml.bak.*
+auth.json
+auth.lock
+google_token.json
+google_client_secret.json
+*.pid
+*.lock
+state.db*
+gateway.pid
+gateway.lock
+interrupt_debug.log
+pairing/
+
+# Private data
+sessions/
+memories/
+discord_threads.json
+channel_directory.json
+gateway_state.json
+models_dev_cache.json
+ollama_cloud_models_cache.json
+logs/
+cache/
+audio_cache/
+image_cache/
+images/
+pastes/
+sandboxes/
+cron/
+kanban.db*
+bin/
+hermes-agent
+hooks/
+
+# OS
+.DS_Store
+__pycache__/
+*.pyc

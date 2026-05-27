@@ -1,0 +1,9 @@
+{
+  "last_report_path": "/home/rajeev/.hermes/logs/curator/20260523-135014",
+  "last_run_at": "2026-05-23T13:50:14.228372+00:00",
+  "last_run_duration_seconds": 30.939751,
+  "last_run_summary": "auto: no changes; llm: ## Analysis\n\nWith only **one agent-created skill** in the candidate list (`email-campaign-calendar`), there are no clusters to consolidate — you need at least 2 skills to form a cluster or merge.\n\n**Assessment of `email-campaign-calendar`:*…",
+  "last_run_summary_shown_at": null,
+  "paused": false,
+  "run_count": 1
+}
