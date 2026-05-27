@@ -1,0 +1,11 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "hermes gateway run"
+restartPolicyType = "always"
+restartPolicyMaxRetries = 10
+
+[[services]]
+name = "hermes-discord-bot"
