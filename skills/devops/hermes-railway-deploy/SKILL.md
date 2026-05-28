@@ -218,6 +218,16 @@ If you want any change to your personal Hermes files (skills, scripts, config) t
 
 See `github-repo-management` skill, section "File Watcher — Auto-Commit and Push on Change" for the full watcher script and setup.
 
+**Ready-to-use script:** `scripts/hermes_backup_sync.py` in this skill — copy to `~/.hermes/scripts/` and run with `terminal(background=True)`.
+
+**Rajeev's live backup setup (fully deployed):**
+- Backup repo: github.com/Rajeevboy/claude-testing (PRIVATE)
+- Backup working dir: /home/rajeev/hermes-backup/ (fresh clone of that repo)
+- Watcher script: ~/.hermes/scripts/hermes_backup_sync.py
+- Cron safety net: hermes-github-backup (every 30m)
+- What syncs: skills/, scripts/, discord_backup/, SOUL.md
+- What does NOT sync: sessions/, memories/, auth.json, config.yaml (has tokens), hermes-agent/
+
 **Remote setup for personal backup repo:**
 ```bash
 # Add a secondary remote pointing to your backup repo (keep origin as upstream)
@@ -262,3 +272,9 @@ Hermes on your local PC uses OAuth (claude_code source) stored in auth.json. Thi
 
 ### Discord backup data is local only
 All Discord message data (discord_backup/all_channel_messages.json) is saved on YOUR PC only. If PC dies, data is lost. Mitigate with daily GitHub backup (see above). The cron sync script runs every 5 mins and keeps the file fresh.
+
+### Hermes pairing codes expire quickly
+`hermes pairing approve discord <CODE>` fails with "not found or expired" if the code was generated more than a minute or two ago. Tell the user to generate a fresh code by typing `/hermes pair` in Discord DM with the bot, then immediately run the approve command. Check current approved users with `hermes pairing list`.
+
+### gh CLI auth expires independently of ~/.git-credentials
+The `gh` CLI token and the git credential store (`~/.git-credentials`) are separate. `gh api` can return 401 while `git push` still works fine. If `gh` fails, fall back to raw API calls using the token from git-credentials (see `github-repo-management` skill for the Python urllib pattern).

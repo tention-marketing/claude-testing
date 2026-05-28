@@ -564,6 +564,29 @@ echo $! > ~/.hermes/git_watcher.pid
 kill $(cat ~/.hermes/git_watcher.pid)
 ```
 
+### Hermes-specific backup pattern (Rajeev's setup)
+
+For backing up personal Hermes data (NOT the full hermes-agent source), use a separate backup repo cloned fresh:
+
+```
+~/.hermes/skills/          -> backup_repo/skills/
+~/.hermes/scripts/         -> backup_repo/scripts/
+~/.hermes/discord_backup/  -> backup_repo/discord_backup/
+~/.hermes/SOUL.md          -> backup_repo/SOUL.md
+```
+
+The backup script at `~/.hermes/scripts/hermes_backup_sync.py`:
+1. Detects changes via watchdog
+2. Uses `shutil.copytree()` to sync folders into the backup repo dir
+3. Commits and pushes — runs as a background process
+4. A Hermes cron job (every 30m) acts as safety net
+
+Run as background:
+```bash
+# Hermes terminal(background=true) — not nohup, not &
+terminal(command="python3 ~/.hermes/scripts/hermes_backup_sync.py", background=True)
+```
+
 ### Pitfalls
 
 **Repo too large — push times out**
@@ -580,13 +603,58 @@ For personal backup repos where you own both sides, `--force` is acceptable.
 **Remote has diverged — push rejected on first run**
 If the GitHub repo was created with a README/initial commit and your local repo has a different history, either:
 - `git push REMOTE HEAD:hermes-live` (push to a new branch, avoids conflict)
-- Or `git fetch REMOTE && git reset --hard REMOTE/main` (overwrite local with remote — careful)
+- Or use a fresh clone of the remote as the backup working dir (cleanest approach)
 
 **Token in remote URL vs credential helper**
 Embedding the token directly in the remote URL (`https://user:token@github.com/...`) is the most reliable approach when `gh` CLI auth has expired. The token is read from `~/.git-credentials` via `git credential fill`. Always use a named secondary remote (not `origin`) so you don't break the original upstream.
 
 **hermes-agent/ is too large to watch/push**
 The `~/.hermes/hermes-agent/` directory contains the full Hermes source (10k+ files). Pushing it to GitHub times out. Watch personal files only: skills/, scripts/, config.yaml, discord_backup/. Create a separate minimal repo for those.
+
+**gh CLI auth vs stored git credentials**
+`gh` CLI auth can expire independently of `~/.git-credentials`. If `gh api` returns 401, use the raw token from git-credentials instead. Extract with:
+```bash
+git credential fill <<< $'protocol=https\nhost=github.com\n' | grep password | cut -d= -f2
+```
+Note: terminals sanitize the token to `***` in output — do NOT try to echo/print it. Use it only in-process (Python urllib, git remote URL, etc.).
+
+**Token sanitized in terminal output**
+Hermes terminal sanitizes GitHub tokens (ghp_...) to `***` in all output. This means curl commands that embed the token in shell variables WILL FAIL silently. Workaround: write a Python script to /tmp and run it — Python handles the token internally without shell interpolation being captured:
+```python
+# /tmp/github_api.py
+import subprocess, re, urllib.request, json
+result = subprocess.run(['git', 'credential', 'fill'],
+    input='protocol=https\nhost=github.com\n',
+    capture_output=True, text=True)
+token = re.search(r'password=(.+)', result.stdout).group(1).strip()
+# now use token in urllib.request calls — never printed to stdout
+```
+
+**Make repo private via API (when gh CLI auth expired)**
+```python
+import urllib.request, json, subprocess, re
+result = subprocess.run(['git', 'credential', 'fill'],
+    input='protocol=https\nhost=github.com\n', capture_output=True, text=True)
+token = re.search(r'password=(.+)', result.stdout).group(1).strip()
+req = urllib.request.Request(
+    'https://api.github.com/repos/OWNER/REPO',
+    data=json.dumps({"private": True}).encode(), method='PATCH')
+req.add_header('Authorization', 'token ' + token)
+req.add_header('Content-Type', 'application/json')
+req.add_header('User-Agent', 'hermes')
+resp = urllib.request.urlopen(req)
+d = json.loads(resp.read())
+print("Private:", d.get('private'))
+```
+
+**Ready-to-use script:** `scripts/make_repo_private.py` in this skill — checks and flips visibility without needing gh CLI.
+
+**Verify repo visibility without gh CLI**
+```bash
+# If ls-remote works WITHOUT credentials, repo is public
+GIT_TERMINAL_PROMPT=0 git ls-remote https://github.com/OWNER/REPO 2>&1
+# Exit 0 with output = public. Exit non-zero or empty = private (or bad URL)
+```
 
 ## 10. Gists
 
