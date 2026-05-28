@@ -20,6 +20,9 @@ Complete guide for managing the PR lifecycle. Each section shows the `gh` way fi
 - Authenticated with GitHub (see `github-auth` skill)
 - Inside a git repository with a GitHub remote
 
+> Pushing ~/.hermes/ content to GitHub? See `references/hermes-safe-push-pattern.md`
+> for the safe-files checklist, .gitignore template, and secret-scan step.
+
 ### Quick Auth Detection
 
 ```bash
@@ -209,6 +212,56 @@ for i in $(seq 1 20); do
 done
 ```
 
+## 4b. GitHub Push Protection (Secret Scanning)
+
+GitHub scans every push for hardcoded secrets (tokens, API keys, passwords). If a push
+is blocked with `GH013: Repository rule violations found`, follow this sequence:
+
+### Step 1 — Identify the secret location
+The error message names the exact file and line, e.g.:
+```
+path: scripts/discord_sync.py:9
+```
+
+### Step 2 — Replace the hardcoded value with an env var
+```python
+# BEFORE (blocked):
+TOKEN = "Bot MTQ..."
+
+# AFTER (safe):
+import os
+TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "")
+if not TOKEN:
+    raise ValueError("Set DISCORD_BOT_TOKEN environment variable")
+```
+
+### Step 3 — Rewrite git history to remove the secret
+PITFALL — `git reset HEAD~1` fails on the initial commit: there is no parent to reset to.
+Error: `fatal: ambiguous argument 'HEAD~1': unknown revision or path in the working tree`
+
+Fix for initial commit: delete and reinitialise the repo:
+```bash
+cd /path/to/repo
+rm -rf .git
+git init
+git checkout -b main
+git config user.name "..."
+git config user.email "..."
+git add -A
+git commit -m "feat: initial commit (secrets replaced with env vars)"
+git push --force https://USER:TOKEN@github.com/OWNER/REPO.git main
+```
+
+Fix for non-initial commit: use `git reset --soft HEAD~1` to keep files staged,
+fix the file, then recommit and force push.
+
+### Step 4 — Audit before pushing
+Before any first push, scan for secrets:
+```bash
+grep -rn "TOKEN\s*=\s*['\"][A-Za-z0-9]" /path/to/repo --include="*.py" --include="*.js" --include="*.sh"
+```
+Replace any literal secret with an env var or a placeholder like `os.environ.get(...)`.
+
 ## 5. Auto-Fixing CI Failures
 
 When CI fails, diagnose and fix. This loop works with either auth method.
@@ -354,6 +407,47 @@ git push -u origin HEAD
 
 # 8. Merge when green (see Section 6)
 ```
+
+## Pitfalls
+
+### GitHub Push Protection blocks hardcoded secrets even when terminal shows `***`
+GitHub scans every push for known secret patterns (Discord bot tokens, Anthropic API keys, etc.) and rejects with HTTP 403 + `GH013: Repository rule violations found`. This fires even if the token appears as `***` in your terminal output — the terminal masks display but the actual file still has the real value.
+
+Most common offender: Discord sync scripts copied from `~/.hermes/scripts/` that have the bot token hardcoded.
+
+Fix: replace before committing:
+```python
+# BAD — caught by push protection
+TOKEN = "MTUwMzY1NTIy..."
+
+# GOOD — safe to commit
+import os
+TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "")
+```
+
+If the bad commit already exists and it is the **initial commit** (no parent), `git reset HEAD~1` fails. Only fix is:
+```bash
+rm -rf .git
+git init && git checkout -b main
+git add -A
+git commit -m "clean: no secrets"
+git push --force https://user:TOKEN@github.com/owner/repo.git main
+```
+
+### `gh auth login --with-token` silently fails on Ubuntu's bundled gh v2.4
+`echo 'TOKEN' | gh auth login --with-token` produces no output and leaves auth broken. `gh auth status` still shows "authentication failed".
+
+Workaround — skip gh CLI, use git credential store + curl directly:
+```bash
+echo "https://USERNAME:TOKEN@github.com" > ~/.git-credentials
+git config --global credential.helper store
+# Verify auth:
+curl -s -H "Authorization: token TOKEN" https://api.github.com/user | python3 -c "import sys,json; print(json.load(sys.stdin).get('login'))"
+```
+Write token to a temp env file (`/tmp/ghtoken.sh`), source it, use `$GH_TOKEN` in curl calls — avoids leaking token into shell history.
+
+### Cannot `HEAD~1` reset on the initial commit
+`git reset --soft HEAD~1` fails: "ambiguous argument HEAD~1: unknown revision" when there is only one commit. No parent exists. Only escape: delete `.git` and recommit (see Push Protection fix above).
 
 ## Useful PR Commands Reference
 

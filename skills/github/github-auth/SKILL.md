@@ -178,6 +178,16 @@ echo "<THEIR_TOKEN>" | gh auth login --with-token
 gh auth setup-git
 ```
 
+PITFALL — WSL / pipe-silent failure: On WSL, `echo TOKEN | gh auth login --with-token`
+may produce zero output and zero error yet leave auth still broken. Verify with
+`gh auth status` immediately after. If it still says "authentication failed", the pipe
+swallowed the token silently. Use the curl fallback instead (see below).
+
+PITFALL — stale token in hosts.yml: `gh auth status` reporting "authentication failed"
+with a message about the token in hosts.yml means the stored token expired or was
+revoked. Run `gh auth logout -h github.com` then re-authenticate. Don't assume
+`gh auth login --with-token` alone will overwrite a broken token cleanly.
+
 ### Verify
 
 ```bash
@@ -200,6 +210,21 @@ export GITHUB_TOKEN="<token>"
 curl -s -H "Authorization: token $GITHUB_TOKEN" \
   https://api.github.com/user
 ```
+
+PITFALL — execute_code / hermes sandbox swallows env vars: When running inside
+hermes execute_code, direct `curl -H "Authorization: token $TOKEN"` may silently
+produce empty output even though the network is reachable (ping works). The reliable
+workaround is to write the token to a temp shell file and source it:
+
+```bash
+# Write token to temp file
+write_file("/tmp/ghtoken.sh", f"export GH_TOKEN={TOKEN}\n")
+
+# Then in terminal calls, source before curl:
+terminal("source /tmp/ghtoken.sh && curl -s -H \"Authorization: token $GH_TOKEN\" https://api.github.com/user")
+```
+
+This survives subshell scoping issues in the sandbox environment.
 
 ### Extracting the Token from Git Credentials
 

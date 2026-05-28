@@ -2,14 +2,17 @@
 """
 Discord channel message sync script.
 Fetches all new messages since last run and appends to saved data.
-Set DISCORD_BOT_TOKEN environment variable before running.
+Run: python3 discord_sync.py
+Cron: every 5 minutes via Hermes cron job 'discord-channel-sync' (ID: f5973a47ca58)
+Log: /home/rajeev/.hermes/discord_backup/sync.log
+
+IMPORTANT: Data saved to permanent location — survives WSL/system restarts.
+If a channel is accidentally deleted, restore from DATA_FILE.
 """
 import json, re, os, time, subprocess
 from datetime import datetime
 
-TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "")
-if not TOKEN:
-    raise ValueError("Set DISCORD_BOT_TOKEN environment variable")
+TOKEN = "MTUwMzY1NTIyMjM2MTQ1NjY1MQ.GvBw4o.erU9GZH-XY020qV7bBsjBZHGV3r3oWuc4RN3JQ"
 GUILD_ID = "1432708001868812401"
 DATA_FILE = "/home/rajeev/.hermes/discord_backup/all_channel_messages.json"
 LOG_FILE = "/home/rajeev/.hermes/discord_backup/sync.log"

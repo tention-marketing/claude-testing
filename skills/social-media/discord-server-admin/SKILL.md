@@ -470,6 +470,35 @@ When role position update fails, the response is a dict {"message":...,"code":..
 ### Role position update (bot cannot self-elevate)
 PATCH /guilds/GUILD_ID/roles to reorder returns 403 if the bot tries to move itself above its current position. Only the server owner can do this via UI.
 
+## Where Discord Data is Stored
+
+All Discord message data is saved **locally on the user's PC** at:
+```
+/home/rajeev/.hermes/discord_backup/all_channel_messages.json
+```
+
+Nothing is stored online by default. The discord_sync.py cron job (every 5 mins) pulls from Discord API and writes to this file only. If the PC is off, sync pauses; when PC restarts, sync resumes from last known message ID.
+
+To make data safe from PC failure: set up daily GitHub backup or deploy to Railway (see hermes-railway-deploy skill).
+
+## Multi-Instance Hermes (two bots, two servers)
+
+Each instance needs its own HERMES_HOME:
+
+```
+~/.hermes/   -> Bot 1, Server 1, Token 1, messages 1
+~/.hermes2/  -> Bot 2, Server 2, Token 2, messages 2
+```
+
+Run second instance in a new terminal:
+```bash
+HERMES_HOME=~/.hermes2 hermes
+# or add alias to ~/.bashrc:
+alias hermes2="HERMES_HOME=~/.hermes2 hermes"
+```
+
+Data is completely separate — sessions, memories, discord_backup, config all isolated. They never mix.
+
 ## Hermes-as-Discord-bot capability
 Everything executable from the terminal/CLI can also be triggered directly from Discord by @mentioning the bot in any channel. The bot has the same tool access. Users can say "@Hermes create a channel called X inside Y category" directly in Discord.
 

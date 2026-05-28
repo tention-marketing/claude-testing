@@ -466,6 +466,128 @@ curl -s -X POST \
   -d '{"ref": "main", "inputs": {"environment": "staging"}}'
 ```
 
+## 10. File Watcher — Auto-Commit and Push on Change
+
+Use this when you want any file change in a folder to automatically commit and push to GitHub in real time (no manual git add/commit/push needed).
+
+### Install dependency
+```bash
+pip install watchdog
+```
+
+### Setup: add a named remote with token embedded
+```bash
+GH_TOKEN=$(git credential fill <<< $'protocol=https\nhost=github.com\n' | grep password | cut -d= -f2)
+git remote add myremote "https://USERNAME:${GH_TOKEN}@github.com/USERNAME/REPO.git"
+# or update existing:
+git remote set-url myremote "https://USERNAME:${GH_TOKEN}@github.com/USERNAME/REPO.git"
+```
+
+### Watcher script (~/.hermes/scripts/git_auto_push.py)
+```python
+#!/usr/bin/env python3
+import time, subprocess, logging
+from pathlib import Path
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+
+WATCH_DIR = Path("/path/to/watch")
+REMOTE = "myremote"
+BRANCH = "main"
+DEBOUNCE_SECONDS = 10   # wait 10s after last change before pushing
+
+IGNORE_PATTERNS = [
+    "__pycache__", ".git", "*.pyc", "*.log",
+    "venv", ".venv", "node_modules", "*.egg-info",
+    "*.db", "*.db-shm", "*.db-wal", ".pytest_cache"
+]
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [git-watcher] %(message)s")
+log = logging.getLogger("git-watcher")
+
+def should_ignore(path):
+    for pat in IGNORE_PATTERNS:
+        if pat.startswith("*"):
+            if path.endswith(pat[1:]): return True
+        elif pat in path: return True
+    return False
+
+def git_push():
+    result = subprocess.run(["git", "status", "--porcelain"], cwd=WATCH_DIR, capture_output=True, text=True)
+    if not result.stdout.strip():
+        log.info("No changes."); return
+    subprocess.run(["git", "add", "-A"], cwd=WATCH_DIR, check=True)
+    msg = f"auto: file watcher sync {time.strftime('%Y-%m-%d %H:%M:%S')}"
+    subprocess.run(["git", "commit", "-m", msg], cwd=WATCH_DIR, check=True)
+    result = subprocess.run(["git", "push", REMOTE, BRANCH], cwd=WATCH_DIR, capture_output=True, text=True)
+    if result.returncode == 0:
+        log.info(f"Pushed to {REMOTE}/{BRANCH}")
+    else:
+        log.error(f"Push failed: {result.stderr.strip()}")
+
+class ChangeHandler(FileSystemEventHandler):
+    def __init__(self):
+        self._last_change = 0
+        self._pending = False
+    def on_any_event(self, event):
+        if event.is_directory or should_ignore(event.src_path): return
+        self._last_change = time.time()
+        self._pending = True
+    def check_and_push(self):
+        if self._pending and (time.time() - self._last_change) >= DEBOUNCE_SECONDS:
+            log.info("Change detected — committing and pushing...")
+            git_push()
+            self._pending = False
+
+if __name__ == "__main__":
+    handler = ChangeHandler()
+    observer = Observer()
+    observer.schedule(handler, str(WATCH_DIR), recursive=True)
+    observer.start()
+    try:
+        while True:
+            handler.check_and_push()
+            time.sleep(2)
+    except KeyboardInterrupt:
+        observer.stop()
+    observer.join()
+```
+
+### Run as background process
+```bash
+nohup python3 ~/.hermes/scripts/git_auto_push.py >> ~/.hermes/logs/git-watcher.log 2>&1 &
+echo $! > ~/.hermes/git_watcher.pid
+```
+
+### Stop the watcher
+```bash
+kill $(cat ~/.hermes/git_watcher.pid)
+```
+
+### Pitfalls
+
+**Repo too large — push times out**
+If the watched folder is a large source repo (thousands of files, like hermes-agent/), the first push can timeout. Fix: only watch a small subfolder (skills/, scripts/, config files), or push to a branch with `--force` flag and `HEAD:branch-name`.
+
+**Non-fast-forward rejection**
+If the remote already has commits the local branch doesn't have:
+```bash
+git fetch REMOTE
+git rebase REMOTE/main   # or: git push REMOTE HEAD:my-new-branch
+```
+For personal backup repos where you own both sides, `--force` is acceptable.
+
+**Remote has diverged — push rejected on first run**
+If the GitHub repo was created with a README/initial commit and your local repo has a different history, either:
+- `git push REMOTE HEAD:hermes-live` (push to a new branch, avoids conflict)
+- Or `git fetch REMOTE && git reset --hard REMOTE/main` (overwrite local with remote — careful)
+
+**Token in remote URL vs credential helper**
+Embedding the token directly in the remote URL (`https://user:token@github.com/...`) is the most reliable approach when `gh` CLI auth has expired. The token is read from `~/.git-credentials` via `git credential fill`. Always use a named secondary remote (not `origin`) so you don't break the original upstream.
+
+**hermes-agent/ is too large to watch/push**
+The `~/.hermes/hermes-agent/` directory contains the full Hermes source (10k+ files). Pushing it to GitHub times out. Watch personal files only: skills/, scripts/, config.yaml, discord_backup/. Create a separate minimal repo for those.
+
 ## 10. Gists
 
 **With gh:**
