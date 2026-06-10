@@ -29,6 +29,11 @@ display:
 memory:
   memory_enabled: true
   user_profile_enabled: true
+pairing:
+  approved_users:
+    discord:
+      - user_id: "1427987539691835442"
+        name: "Rajeev"
 """
 
 with open(f"{HERMES_HOME}/config.yaml", "w") as f:
