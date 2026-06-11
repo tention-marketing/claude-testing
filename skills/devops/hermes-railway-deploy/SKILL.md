@@ -278,3 +278,5 @@ All Discord message data (discord_backup/all_channel_messages.json) is saved on 
 
 ### gh CLI auth expires independently of ~/.git-credentials
 The `gh` CLI token and the git credential store (`~/.git-credentials`) are separate. `gh api` can return 401 while `git push` still works fine. If `gh` fails, fall back to raw API calls using the token from git-credentials (see `github-repo-management` skill for the Python urllib pattern).
+
+<!-- updated -->
