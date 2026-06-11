@@ -1,9 +1,10 @@
-import os, subprocess, sys, json
+import os, subprocess, sys, json, shutil
 
 HERMES_HOME = os.environ.get("HERMES_HOME", "/app/data")
 os.makedirs(HERMES_HOME, exist_ok=True)
 
-BOT_TOKEN=os.env...N", "")
+DISCORD_TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "")
+ANTHROPIC_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
 # Write config.yaml
 config = f"""model:
@@ -19,7 +20,7 @@ discord:
   allowed_channels: ''
   auto_thread: true
   reactions: true
-  token: {BOT_TOKEN}
+  token: {DISCORD_TOKEN}
 display:
   personality: kawaii
   streaming: true
@@ -59,7 +60,7 @@ auth = {
             "auth_type": "api_key",
             "priority": 0,
             "source": "env:ANTHROPIC_API_KEY",
-            "access_token": os.environ.get("ANTHROPIC_API_KEY", ""),
+            "access_token": ANTHROPIC_KEY,
             "last_status": "ok"
         }]
     }
@@ -67,17 +68,15 @@ auth = {
 with open(f"{HERMES_HOME}/auth.json", "w") as f:
     json.dump(auth, f)
 
-# Write SOUL.md — copy from /app/SOUL.md if it exists, else write inline
+# Write SOUL.md
 soul_src = "/app/SOUL.md"
 soul_dst = f"{HERMES_HOME}/SOUL.md"
 if os.path.exists(soul_src):
-    import shutil
     shutil.copy(soul_src, soul_dst)
     print("Copied SOUL.md from image")
 else:
-    # fallback inline
     with open(soul_dst, "w") as f:
-        f.write("""# Tention Marketing Bot\n\nYou are the Hermes AI for Tention Marketing.\n\nYOU HAVE terminal AND code_execution TOOLS. USE THEM.\nNEVER say you cannot create channels. You CAN via Discord REST API.\n\nGuild ID: 1432708001868812401\nTeam Rajeev category ID: 1509442091351146556\nNEVER add user 1235236826793381908 to any channel.\n\nTo create a channel, run this Python in your code_execution tool:\n\nimport os, requests\nBOT_TOKEN=os.env...N","")\nGUILD_ID="1432708001868812401"\nCATEGORY_ID="1509442091351146556"\nr = requests.post(\n    f"https://discord.com/api/v10/guilds/{GUILD_ID}/channels",\n    headers={"Authorization":f"Bot {BOT_TOKEN}","Content-Type":"application/json"},\n    json={"name":"channel-name","type":0,"parent_id":CATEGORY_ID,\n          "permission_overwrites":[{"id":GUILD_ID,"type":0,"allow":"0","deny":"1024"}]}\n)\nprint(r.status_code, r.json())\n""")
+        f.write("# Tention Marketing Bot\n\nYou are the Hermes AI for Tention Marketing, running 24/7 on Railway.\n\nYOU HAVE terminal AND code_execution TOOLS. Use them.\nNEVER say you cannot create channels. You CAN via Discord REST API.\n\nGuild ID: 1432708001868812401\nTeam Rajeev category ID: 1509442091351146556\nClients category ID: 1508829395790467104\nNEVER add user 1235236826793381908 to any channel.\n\nTo CREATE a channel, run this in code_execution:\n\nimport os, requests\ntok = os.environ.get('DISCORD_BOT_TOKEN', '')\ngid = '1432708001868812401'\nr = requests.post(f'https://discord.com/api/v10/guilds/{gid}/channels',\n    headers={'Authorization':f'Bot {tok}','Content-Type':'application/json'},\n    json={'name':'channel-name','type':0,'parent_id':'1509442091351146556',\n          'permission_overwrites':[{'id':gid,'type':0,'allow':'0','deny':'1024'}]})\nprint(r.status_code, r.json())\n\nNEW CLIENT WORKFLOW (automatic):\n1. List channels to find right category\n2. Create private channel named after client\n3. Post info card (Name, Email, Brand, Shopify URL, Collab Code, Onboarding Doc)\n4. Post welcome message with Loom: https://www.loom.com/share/77267678d5e749bdb412daf757a25205\n\nCHANNEL DELETE RULE: Always warn Rajeev first, save messages, get permission. No exceptions.\n")
     print("Wrote inline SOUL.md")
 
 print("All config written. Starting Hermes gateway...")
