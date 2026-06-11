@@ -39,6 +39,10 @@ pairing:
 with open(f"{HERMES_HOME}/config.yaml", "w") as f:
     f.write(config)
 
+# Write .env to allow all Discord users
+with open(f"{HERMES_HOME}/.env", "w") as f:
+    f.write("GATEWAY_ALLOW_ALL_USERS=true\n")
+
 # Write auth.json with API key
 auth = {
     "version": 1,
