@@ -1,3 +1,4 @@
+# v4 - platform_toolsets with terminal + code_execution
 import os, subprocess, sys, json, shutil
 
 HERMES_HOME = os.environ.get("HERMES_HOME", "/app/data")
