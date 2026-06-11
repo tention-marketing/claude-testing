@@ -32,6 +32,13 @@ pairing:
     discord:
       - user_id: "1427987539691835442"
         name: "Rajeev"
+platform_toolsets:
+  discord:
+  - hermes-discord
+  - terminal
+  - code_execution
+  - memory
+  - file
 """
 
 with open(f"{HERMES_HOME}/config.yaml", "w") as f:
