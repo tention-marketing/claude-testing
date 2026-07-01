@@ -16,6 +16,9 @@ pairing/
 # Private data
 sessions/
 memories/
+# Exception — data_github/memories is intentionally committed for portable deploy
+!data_github/memories/
+!data_github/memories/*.md
 discord_threads.json
 channel_directory.json
 gateway_state.json
