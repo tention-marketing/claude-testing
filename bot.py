@@ -39,8 +39,6 @@ pairing:
 platform_toolsets:
   discord:
   - hermes-discord
-  - terminal
-  - code_execution
   - memory
   - file
 """
