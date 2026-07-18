@@ -88,8 +88,11 @@ else:
     print("✅ auth.json updated (Anthropic key refreshed, other tokens preserved)")
 
 # ── 3. Write .env ────────────────────────────────────────────────────────────
+# GATEWAY_ALLOW_ALL_USERS is intentionally NOT set here — access is gated by
+# config.yaml's pairing.approved_users list. Setting it to true bypasses that
+# allowlist entirely, letting any Discord user talk to (and instruct) the bot.
 with open(f"{HERMES_HOME}/.env", "w") as f:
-    f.write("GATEWAY_ALLOW_ALL_USERS=true\n")
+    f.write("")
 
 # ── 4. Copy SOUL.md ──────────────────────────────────────────────────────────
 soul_src = "/app/SOUL.md"
