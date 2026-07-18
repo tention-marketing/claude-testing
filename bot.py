@@ -12,7 +12,7 @@ ANTHROPIC_KEY = os.environ.get(_a_key, "")
 
 # ── 1. Write config.yaml (always overwrite — no secrets here) ──────────────
 config = f"""model:
-  default: claude-sonnet-4-6
+  default: claude-sonnet-5
   provider: anthropic
 providers: {{}}
 agent:
